@@ -1,0 +1,139 @@
+{
+  "title": "Classic Cotton T-Shirt",
+  "handle": "classic-cotton-t-shirt",
+  "description": "A comfortable everyday cotton t-shirt made from 100% organic cotton. Soft and breathable, pre-shrunk fabric, machine washable.",
+  "descriptionHtml": "<p>A comfortable everyday cotton t-shirt made from 100% organic cotton.</p><ul><li>Soft and breathable</li><li>Pre-shrunk fabric</li><li>Machine washable</li></ul>",
+  "vendor": "BrandName",
+  "productType": "T-Shirts",
+  "productCategory": "Apparel & Accessories > Clothing > Shirts & Tops",
+  "tags": ["cotton", "casual", "basics", "organic"],
+  "published": true,
+  "status": "active",
+  "seoTitle": "Classic Cotton T-Shirt | BrandName",
+  "seoDescription": "Shop our comfortable everyday cotton t-shirt. Made from 100% organic cotton. Available in multiple sizes and colors.",
+  "variants": [
+    {
+      "id": "variant-1",
+      "sku": "TSHIRT-S-BLK",
+      "barcode": "",
+      "price": "29.99",
+      "compareAtPrice": "39.99",
+      "inventoryQuantity": 50,
+      "weight": 200,
+      "weightUnit": "g",
+      "requiresShipping": true,
+      "taxable": true,
+      "options": [
+        { "name": "Size", "value": "Small" },
+        { "name": "Color", "value": "Black" }
+      ],
+      "imageUrl": "https://cdn.example.com/tshirt-front-black.jpg"
+    },
+    {
+      "id": "variant-2",
+      "sku": "TSHIRT-M-BLK",
+      "barcode": "",
+      "price": "29.99",
+      "compareAtPrice": "39.99",
+      "inventoryQuantity": 45,
+      "weight": 220,
+      "weightUnit": "g",
+      "requiresShipping": true,
+      "taxable": true,
+      "options": [
+        { "name": "Size", "value": "Medium" },
+        { "name": "Color", "value": "Black" }
+      ]
+    },
+    {
+      "id": "variant-3",
+      "sku": "TSHIRT-L-BLK",
+      "barcode": "",
+      "price": "29.99",
+      "compareAtPrice": "39.99",
+      "inventoryQuantity": 40,
+      "weight": 240,
+      "weightUnit": "g",
+      "requiresShipping": true,
+      "taxable": true,
+      "options": [
+        { "name": "Size", "value": "Large" },
+        { "name": "Color", "value": "Black" }
+      ]
+    },
+    {
+      "id": "variant-4",
+      "sku": "TSHIRT-S-WHT",
+      "barcode": "",
+      "price": "29.99",
+      "compareAtPrice": "39.99",
+      "inventoryQuantity": 55,
+      "weight": 200,
+      "weightUnit": "g",
+      "requiresShipping": true,
+      "taxable": true,
+      "options": [
+        { "name": "Size", "value": "Small" },
+        { "name": "Color", "value": "White" }
+      ],
+      "imageUrl": "https://cdn.example.com/tshirt-front-white.jpg"
+    },
+    {
+      "id": "variant-5",
+      "sku": "TSHIRT-M-WHT",
+      "barcode": "",
+      "price": "29.99",
+      "compareAtPrice": "39.99",
+      "inventoryQuantity": 48,
+      "weight": 220,
+      "weightUnit": "g",
+      "requiresShipping": true,
+      "taxable": true,
+      "options": [
+        { "name": "Size", "value": "Medium" },
+        { "name": "Color", "value": "White" }
+      ]
+    },
+    {
+      "id": "variant-6",
+      "sku": "TSHIRT-L-WHT",
+      "barcode": "",
+      "price": "29.99",
+      "compareAtPrice": "39.99",
+      "inventoryQuantity": 42,
+      "weight": 240,
+      "weightUnit": "g",
+      "requiresShipping": true,
+      "taxable": true,
+      "options": [
+        { "name": "Size", "value": "Large" },
+        { "name": "Color", "value": "White" }
+      ]
+    }
+  ],
+  "images": [
+    {
+      "src": "https://cdn.example.com/tshirt-front-black.jpg",
+      "alt": "Classic Cotton T-Shirt - Black Front View",
+      "position": 1
+    },
+    {
+      "src": "https://cdn.example.com/tshirt-back-black.jpg",
+      "alt": "Classic Cotton T-Shirt - Black Back View",
+      "position": 2
+    },
+    {
+      "src": "https://cdn.example.com/tshirt-detail.jpg",
+      "alt": "Classic Cotton T-Shirt - Fabric Detail",
+      "position": 3
+    },
+    {
+      "src": "https://cdn.example.com/tshirt-front-white.jpg",
+      "alt": "Classic Cotton T-Shirt - White Front View",
+      "position": 4
+    }
+  ],
+  "sourceUrl": "https://example.com/products/classic-cotton-t-shirt",
+  "scrapedAt": "2024-01-15T10:30:00.000Z",
+  "platform": "shopify"
+}
