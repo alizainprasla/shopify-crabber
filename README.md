@@ -66,6 +66,67 @@ For development with hot reload:
 npm run dev
 ```
 
+---
+
+## Installing & Testing in Chrome (Developer Mode)
+
+### Step 1 — Build the extension
+
+```bash
+npm install
+npm run build
+```
+
+This produces a `dist/` folder containing the unpacked extension.
+
+### Step 2 — Load into Chrome
+
+1. Open Chrome and navigate to `chrome://extensions`
+2. Toggle **Developer mode** on (top-right corner)
+3. Click **Load unpacked**
+4. Select the `dist/` folder inside this project
+
+The Shopify Crabber icon will appear in your Chrome toolbar.
+
+> If the icon is hidden, click the puzzle-piece menu and pin it.
+
+### Step 3 — Test on a product page
+
+1. Navigate to any ecommerce product page (Shopify, BigCommerce, WooCommerce, etc.)
+2. Click the **Shopify Crabber** icon in the toolbar
+3. Click **Scrape Current Product**
+4. Review the extracted title, description, price, and images in the preview
+5. Click **Download Shopify CSV** to export
+
+### Step 4 — Inspect with DevTools
+
+To debug the extension while testing:
+
+**Popup DevTools**
+- Right-click anywhere inside the popup → **Inspect**
+- This opens DevTools scoped to the popup window
+- Check the Console tab for scraping logs or errors
+
+**Background service worker DevTools**
+- Go to `chrome://extensions`
+- Find Shopify Crabber and click **Service Worker** (or **Inspect views: service worker**)
+- This opens DevTools for the background script where message handling runs
+
+**Content script logs**
+- Open DevTools on the product page itself (F12 or Cmd+Option+I)
+- Go to the **Console** tab — content script logs appear here
+
+### Step 5 — Reload after changes
+
+After editing source files and rebuilding (`npm run build`):
+
+1. Go to `chrome://extensions`
+2. Click the **refresh icon** on the Shopify Crabber card
+3. Reload the product page tab
+4. Test again
+
+> You do not need to re-do "Load unpacked" — refreshing the extension card is enough.
+
 ## Usage
 
 1. Navigate to any ecommerce product page
