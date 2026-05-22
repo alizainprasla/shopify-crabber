@@ -192,8 +192,9 @@ export class ShopifyScraper extends BaseScraper {
     // Basic info
     product.title = json.title || '';
     product.handle = json.handle || '';
-    product.description = this.stripHtml(json.description || '');
-    product.descriptionHtml = json.description || '';
+    const rawDesc = this.decodeIfUrlEncoded(json.description || '');
+    product.description = this.stripHtml(rawDesc);
+    product.descriptionHtml = rawDesc;
     product.vendor = json.vendor || '';
     product.productType = json.type || '';
     product.tags = json.tags || [];
@@ -280,8 +281,9 @@ export class ShopifyScraper extends BaseScraper {
     product.title = jsonLd.name || '';
 
     if (jsonLd.description) {
-      product.description = this.stripHtml(jsonLd.description);
-      product.descriptionHtml = jsonLd.description;
+      const rawDesc = this.decodeIfUrlEncoded(jsonLd.description);
+      product.description = this.stripHtml(rawDesc);
+      product.descriptionHtml = rawDesc;
     }
 
     // Brand
@@ -350,8 +352,9 @@ export class ShopifyScraper extends BaseScraper {
     for (const selector of descriptionSelectors) {
       const html = this.getHtml(selector);
       if (html) {
-        product.descriptionHtml = this.cleanHtml(html);
-        product.description = this.stripHtml(html);
+        const decodedHtml = this.decodeIfUrlEncoded(html);
+        product.descriptionHtml = this.cleanHtml(decodedHtml);
+        product.description = this.stripHtml(decodedHtml);
         break;
       }
     }
@@ -484,6 +487,7 @@ export class ShopifyScraper extends BaseScraper {
     temp.innerHTML = html;
     return temp.textContent || '';
   }
+
 }
 
 /**

@@ -64,11 +64,12 @@ export class GenericScraper extends BaseScraper {
 
     // Description
     if (jsonLd.description) {
+      const rawDesc = this.decodeIfUrlEncoded(jsonLd.description);
       if (!product.description) {
-        product.description = this.stripHtml(jsonLd.description);
+        product.description = this.stripHtml(rawDesc);
       }
       if (!product.descriptionHtml) {
-        product.descriptionHtml = jsonLd.description;
+        product.descriptionHtml = rawDesc;
       }
     }
 

@@ -112,6 +112,15 @@ export abstract class BaseScraper {
     return this.getAttr(`meta[name="${name}"]`, 'content');
   }
 
+  protected decodeIfUrlEncoded(value: string): string {
+    if (!value.includes('%')) return value;
+    try {
+      return decodeURIComponent(value);
+    } catch {
+      return value;
+    }
+  }
+
   /**
    * Deduplicate images by URL
    */
