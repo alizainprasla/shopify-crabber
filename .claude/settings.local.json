@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run *)",
+      "Bash(npx playwright *)",
+      "Bash(node /tmp/test-extension.mjs)",
+      "Bash(npm install *)",
+      "Bash(node test-extension.mjs)",
+      "WebFetch(domain:www.zagg-apac.com)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)"
+    ]
+  }
+}
