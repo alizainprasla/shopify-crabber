@@ -110,6 +110,14 @@ async function handleMessage(message: ExtensionMessage): Promise<unknown> {
     case 'DOWNLOAD_IMAGES':
       return await initiateImageDownload();
 
+    case 'PUSH_TO_SHOPIFY': {
+      const { product, storeConfig } = message.payload as {
+        product: LocalScrapedProduct;
+        storeConfig: { storeUrl: string; accessToken: string };
+      };
+      return await pushProductToShopify(product, storeConfig);
+    }
+
     default:
       return { success: false, error: 'Unknown message type' };
   }
@@ -468,6 +476,110 @@ async function initiateImageDownload(): Promise<{ success: boolean }> {
   // Image downloading is handled in the popup with JSZip
   // This just confirms the request was received
   return { success: true };
+}
+
+/**
+ * Push a scraped product to a Shopify store via the Admin REST API
+ */
+async function pushProductToShopify(
+  product: LocalScrapedProduct,
+  config: { storeUrl: string; accessToken: string }
+): Promise<{ success: boolean; productId?: string; adminUrl?: string; error?: string }> {
+  try {
+    const domain = config.storeUrl
+      .replace(/^https?:\/\//, '')
+      .replace(/\/$/, '');
+
+    // Collect unique option names in order
+    const optionNames: string[] = [];
+    for (const v of product.variants) {
+      for (const opt of v.options) {
+        if (!optionNames.includes(opt.name)) optionNames.push(opt.name);
+      }
+    }
+
+    const shopifyOptions = optionNames.map(name => ({
+      name,
+      values: [...new Set(
+        product.variants.map(v => v.options.find(o => o.name === name)?.value || '').filter(Boolean)
+      )],
+    }));
+
+    const shopifyVariants = product.variants.map((v, i) => {
+      const variant: Record<string, unknown> = {
+        price: v.price || '0.00',
+        sku: v.sku || '',
+        barcode: v.barcode || '',
+        requires_shipping: v.requiresShipping !== false,
+        taxable: v.taxable !== false,
+        position: i + 1,
+      };
+      if (v.compareAtPrice) variant.compare_at_price = v.compareAtPrice;
+      if (v.weight) { variant.weight = v.weight; variant.weight_unit = v.weightUnit || 'g'; }
+      if (v.options[0]) variant.option1 = v.options[0].value;
+      if (v.options[1]) variant.option2 = v.options[1].value;
+      if (v.options[2]) variant.option3 = v.options[2].value;
+      return variant;
+    });
+
+    // Default variant if none
+    if (shopifyVariants.length === 0) {
+      shopifyVariants.push({ price: '0.00', option1: 'Default Title' });
+    }
+
+    const shopifyImages = product.images.map((img, i) => ({
+      src: img.src,
+      alt: img.alt || product.title,
+      position: i + 1,
+    }));
+
+    const payload = {
+      product: {
+        title: product.title,
+        body_html: product.descriptionHtml || product.description || '',
+        vendor: product.vendor || '',
+        product_type: product.productType || '',
+        tags: (product.tags || []).join(', '),
+        status: product.status || 'active',
+        ...(shopifyOptions.length > 0 && { options: shopifyOptions }),
+        variants: shopifyVariants,
+        images: shopifyImages,
+      },
+    };
+
+    const response = await fetch(
+      `https://${domain}/admin/api/2024-01/products.json`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Shopify-Access-Token': config.accessToken,
+        },
+        body: JSON.stringify(payload),
+      }
+    );
+
+    if (!response.ok) {
+      const body = await response.json().catch(() => ({}));
+      const msg = body.errors
+        ? (typeof body.errors === 'string' ? body.errors : JSON.stringify(body.errors))
+        : `HTTP ${response.status}`;
+      return { success: false, error: msg };
+    }
+
+    const data = await response.json();
+    const id = data.product?.id?.toString();
+    return {
+      success: true,
+      productId: id,
+      adminUrl: `https://${domain}/admin/products/${id}`,
+    };
+  } catch (err) {
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : 'Network error',
+    };
+  }
 }
 
 /**

@@ -1,20 +1,29 @@
+import type { ShopifyStoreConfig } from '../../types';
 
 interface ExportActionsProps {
   onExportCSV: () => void;
   onCopyCSV: () => void;
   onDownloadImages: () => void;
+  onPushToShopify: () => void;
+  onConnectStore: () => void;
   imageCount: number;
   downloadingImages: boolean;
   imageProgress: { current: number; total: number };
+  storeConfig: ShopifyStoreConfig | null;
+  pushingToShopify: boolean;
 }
 
 export function ExportActions({
   onExportCSV,
   onCopyCSV,
   onDownloadImages,
+  onPushToShopify,
+  onConnectStore,
   imageCount,
   downloadingImages,
   imageProgress,
+  storeConfig,
+  pushingToShopify,
 }: ExportActionsProps) {
   return (
     <div className="card p-4 space-y-3">
@@ -129,6 +138,49 @@ export function ExportActions({
       <p className="text-xs text-gray-400 text-center">
         CSV is formatted for direct Shopify import
       </p>
+
+      {/* Divider */}
+      <div className="border-t border-gray-100 pt-3">
+        <h4 className="text-sm font-medium text-gray-700 mb-2">Push to Store</h4>
+
+        {storeConfig ? (
+          <>
+            <button
+              onClick={onPushToShopify}
+              disabled={pushingToShopify}
+              className="btn btn-primary w-full bg-indigo-600 hover:bg-indigo-700 border-indigo-600"
+            >
+              {pushingToShopify ? (
+                <>
+                  <svg className="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  </svg>
+                  Pushing...
+                </>
+              ) : (
+                <>
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                  </svg>
+                  Push to Shopify
+                </>
+              )}
+            </button>
+            <p className="text-xs text-gray-400 text-center mt-1">{storeConfig.storeUrl}</p>
+          </>
+        ) : (
+          <button
+            onClick={onConnectStore}
+            className="btn btn-secondary w-full"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+            </svg>
+            Connect Store to Push
+          </button>
+        )}
+      </div>
     </div>
   );
 }

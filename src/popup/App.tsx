@@ -1,5 +1,5 @@
-import { useState, useCallback } from 'react';
-import type { ScrapedProduct, ValidationResult } from '../types';
+import { useState, useCallback, useEffect } from 'react';
+import type { ScrapedProduct, ValidationResult, ShopifyStoreConfig } from '../types';
 import { Header } from './components/Header';
 import { ScrapeButton } from './components/ScrapeButton';
 import { ProductPreview } from './components/ProductPreview';
@@ -7,6 +7,7 @@ import { ExportActions } from './components/ExportActions';
 import { ValidationWarnings } from './components/ValidationWarnings';
 import { Toast } from './components/Toast';
 import { ErrorMessage } from './components/ErrorMessage';
+import { StoreConnect } from './components/StoreConnect';
 import { validateProduct } from '../utils/validators';
 import { generateProductCSV, generateCSVFilename } from '../utils/csv';
 import { generateHandle } from '../utils/shopify';
@@ -27,6 +28,15 @@ export default function App() {
   const [toast, setToast] = useState<ToastState | null>(null);
   const [downloadingImages, setDownloadingImages] = useState(false);
   const [imageProgress, setImageProgress] = useState({ current: 0, total: 0 });
+  const [storeConfig, setStoreConfig] = useState<ShopifyStoreConfig | null>(null);
+  const [showSettings, setShowSettings] = useState(false);
+  const [pushingToShopify, setPushingToShopify] = useState(false);
+
+  useEffect(() => {
+    chrome.storage.local.get(['shopifyStore'], result => {
+      if (result.shopifyStore) setStoreConfig(result.shopifyStore);
+    });
+  }, []);
 
   const showToast = useCallback((message: string, type: ToastState['type']) => {
     setToast({ message, type });
@@ -123,6 +133,26 @@ export default function App() {
     }
   }, [product, showToast]);
 
+  const handlePushToShopify = useCallback(async () => {
+    if (!product || !storeConfig) return;
+    setPushingToShopify(true);
+    try {
+      const response = await chrome.runtime.sendMessage({
+        type: 'PUSH_TO_SHOPIFY',
+        payload: { product, storeConfig },
+      });
+      if (response.success) {
+        showToast(`Pushed to ${storeConfig.storeUrl}!`, 'success');
+      } else {
+        showToast(response.error || 'Failed to push to Shopify', 'error');
+      }
+    } catch {
+      showToast('Failed to push to Shopify', 'error');
+    } finally {
+      setPushingToShopify(false);
+    }
+  }, [product, storeConfig, showToast]);
+
   const handleRetry = useCallback(() => {
     setState('idle');
     setError(null);
@@ -132,28 +162,41 @@ export default function App() {
 
   return (
     <div className="min-h-[300px] flex flex-col">
-      <Header />
+      <Header
+        onSettingsClick={() => setShowSettings(v => !v)}
+        settingsActive={showSettings}
+      />
 
       <main className="flex-1 p-4 space-y-4">
-        {state === 'idle' && (
+        {showSettings && (
+          <StoreConnect
+            onSave={config => {
+              setStoreConfig(config ?? null);
+              setShowSettings(false);
+            }}
+            onClose={() => setShowSettings(false)}
+          />
+        )}
+
+        {!showSettings && state === 'idle' && (
           <ScrapeButton onScrape={handleScrape} />
         )}
 
-        {state === 'scraping' && (
+        {!showSettings && state === 'scraping' && (
           <div className="card p-6 text-center">
             <div className="inline-block w-8 h-8 border-3 border-emerald-600 border-t-transparent rounded-full animate-spin mb-3" />
             <p className="text-gray-600">Scraping product data...</p>
           </div>
         )}
 
-        {state === 'error' && (
+        {!showSettings && state === 'error' && (
           <ErrorMessage
             message={error || 'Unknown error occurred'}
             onRetry={handleRetry}
           />
         )}
 
-        {state === 'success' && product && (
+        {!showSettings && state === 'success' && product && (
           <>
             {validation && (validation.warnings.length > 0 || validation.errors.length > 0) && (
               <ValidationWarnings validation={validation} />
@@ -165,9 +208,13 @@ export default function App() {
               onExportCSV={handleExportCSV}
               onCopyCSV={handleCopyCSV}
               onDownloadImages={handleDownloadImages}
+              onPushToShopify={handlePushToShopify}
+              onConnectStore={() => setShowSettings(true)}
               imageCount={product.images.length}
               downloadingImages={downloadingImages}
               imageProgress={imageProgress}
+              storeConfig={storeConfig}
+              pushingToShopify={pushingToShopify}
             />
 
             <button

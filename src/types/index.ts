@@ -155,6 +155,7 @@ export type MessageType =
   | 'DOWNLOAD_CSV'
   | 'DOWNLOAD_IMAGES'
   | 'GET_PRODUCT_DATA'
+  | 'PUSH_TO_SHOPIFY'
   | 'PING';
 
 export interface ExtensionMessage {
@@ -171,6 +172,19 @@ export interface ScrapeResultMessage extends ExtensionMessage {
   payload: ScrapeResult;
 }
 
+// Shopify store connection for direct push
+export interface ShopifyStoreConfig {
+  storeUrl: string;  // e.g. "mystore.myshopify.com"
+  accessToken: string;
+}
+
+export interface ShopifyPushResult {
+  success: boolean;
+  productId?: string;
+  adminUrl?: string;
+  error?: string;
+}
+
 // Export settings
 export interface ExportSettings {
   includeImages: boolean;
@@ -184,4 +198,5 @@ export interface ExportSettings {
 export interface StorageData {
   recentProducts: ScrapedProduct[];
   settings: ExportSettings;
+  shopifyStore?: ShopifyStoreConfig;
 }
