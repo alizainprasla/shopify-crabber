@@ -33,6 +33,32 @@ interface ShopifyProductJson {
   media?: ShopifyMedia[];
 }
 
+// Shopify Storefront API product (used by shop.app / Next.js)
+interface StorefrontProduct {
+  id?: string;
+  title?: string;
+  handle?: string;
+  description?: string;
+  descriptionHtml?: string;
+  vendor?: string;
+  productType?: string;
+  tags?: string[];
+  featuredImage?: { url?: string; src?: string; altText?: string };
+  images?: { nodes?: Array<{ url?: string; src?: string; altText?: string }> } | Array<{ url?: string; src?: string; altText?: string }>;
+  media?: { nodes?: Array<{ mediaContentType?: string; image?: { url?: string; src?: string; altText?: string } }> };
+  variants?: {
+    nodes?: Array<{
+      id?: string;
+      title?: string;
+      sku?: string;
+      price?: { amount?: string } | string | number;
+      compareAtPrice?: { amount?: string } | string | number | null;
+      image?: { url?: string; src?: string; altText?: string } | null;
+      selectedOptions?: Array<{ name: string; value: string }>;
+    }>;
+  };
+}
+
 interface ShopifyVariant {
   id: number;
   title: string;
@@ -93,6 +119,11 @@ export class ShopifyScraper extends BaseScraper {
   canHandle(): boolean {
     const win = window as unknown as ShopifyWindow;
 
+    // shop.app is Shopify's consumer platform
+    if (window.location.hostname === 'shop.app') {
+      return true;
+    }
+
     // Check for Shopify global object
     if (win.Shopify && typeof win.Shopify === 'object') {
       return true;
@@ -129,6 +160,12 @@ export class ShopifyScraper extends BaseScraper {
 
     if (this.productJson) {
       return this.scrapeFromJson(product);
+    }
+
+    // Try Next.js embedded data (shop.app and similar Storefront API SPAs)
+    const nextDataProduct = this.scrapeFromNextData(product);
+    if (nextDataProduct?.title) {
+      return nextDataProduct;
     }
 
     // Fall back to JSON-LD
@@ -181,6 +218,147 @@ export class ShopifyScraper extends BaseScraper {
     // Try to fetch from .json endpoint
     // Note: This is async but we'll handle it in the content script
     return null;
+  }
+
+  /**
+   * Scrape from Next.js __NEXT_DATA__ (shop.app / Storefront API SPAs)
+   */
+  private scrapeFromNextData(product: ScrapedProduct): ScrapedProduct | null {
+    const script = this.document.querySelector('#__NEXT_DATA__');
+    if (!script?.textContent) return null;
+
+    let data: unknown;
+    try {
+      data = JSON.parse(script.textContent);
+    } catch {
+      return null;
+    }
+
+    const storefrontProduct = this.findStorefrontProduct(data);
+    if (!storefrontProduct?.title) return null;
+
+    product.title = storefrontProduct.title;
+    product.handle = storefrontProduct.handle || '';
+    const rawDesc = this.decodeIfUrlEncoded(storefrontProduct.descriptionHtml || storefrontProduct.description || '');
+    product.description = this.stripHtml(rawDesc);
+    product.descriptionHtml = rawDesc;
+    product.vendor = storefrontProduct.vendor || '';
+    product.productType = storefrontProduct.productType || '';
+    product.tags = storefrontProduct.tags || [];
+
+    product.images = this.extractStorefrontImages(storefrontProduct);
+
+    // Variants
+    const variantNodes = storefrontProduct.variants?.nodes || [];
+    if (variantNodes.length > 0) {
+      product.variants = variantNodes.map((v): ProductVariant => {
+        const price = typeof v.price === 'object' && v.price !== null
+          ? (v.price as { amount?: string }).amount || ''
+          : String(v.price || '');
+        const compareAtPrice = v.compareAtPrice && typeof v.compareAtPrice === 'object'
+          ? (v.compareAtPrice as { amount?: string }).amount || ''
+          : v.compareAtPrice ? String(v.compareAtPrice) : '';
+        const imgSrc = v.image?.url || v.image?.src;
+        return {
+          id: v.id?.replace(/.*\//, '') || '',
+          sku: v.sku || '',
+          price,
+          compareAtPrice,
+          options: (v.selectedOptions || []).map(o => ({ name: o.name, value: o.value })),
+          imageUrl: imgSrc ? this.normalizeUrl(imgSrc) : undefined,
+        };
+      });
+    }
+
+    if (product.variants.length === 0) {
+      product.variants.push({ price: '', options: [] });
+    }
+
+    product.seoTitle = this.getMeta('title') || this.getOgMeta('title') || product.title;
+    product.seoDescription = this.getMeta('description') || this.getOgMeta('description') || '';
+
+    return product;
+  }
+
+  /**
+   * Recursively find a Storefront API product object in Next.js page props
+   */
+  private findStorefrontProduct(data: unknown, depth = 0): StorefrontProduct | null {
+    if (depth > 6 || !data || typeof data !== 'object') return null;
+
+    const obj = data as Record<string, unknown>;
+
+    // If this object looks like a Storefront product, return it
+    if (
+      typeof obj['title'] === 'string' &&
+      obj['title'].length > 0 &&
+      (obj['images'] || obj['variants'] || obj['media'] || obj['featuredImage'])
+    ) {
+      return obj as unknown as StorefrontProduct;
+    }
+
+    // Recurse into object values (skip arrays at top level to avoid false matches)
+    for (const value of Object.values(obj)) {
+      if (value && typeof value === 'object' && !Array.isArray(value)) {
+        const found = this.findStorefrontProduct(value, depth + 1);
+        if (found) return found;
+      }
+    }
+
+    return null;
+  }
+
+  /**
+   * Extract all images from a Storefront API product object
+   */
+  private extractStorefrontImages(p: StorefrontProduct): ProductImage[] {
+    const images: ProductImage[] = [];
+    const seen = new Set<string>();
+
+    const addImage = (url: string | undefined, alt?: string | null) => {
+      if (!url) return;
+      const normalized = this.normalizeUrl(url);
+      if (normalized && !seen.has(normalized)) {
+        seen.add(normalized);
+        images.push({ src: normalized, alt: alt || '', position: images.length + 1 });
+      }
+    };
+
+    // images.nodes[]
+    if (p.images) {
+      if (Array.isArray(p.images)) {
+        for (const img of p.images) {
+          addImage(img.url || img.src, img.altText);
+        }
+      } else if (p.images.nodes) {
+        for (const img of p.images.nodes) {
+          addImage(img.url || img.src, img.altText);
+        }
+      }
+    }
+
+    // media.nodes[] (IMAGE type)
+    if (p.media?.nodes) {
+      for (const m of p.media.nodes) {
+        if (m.mediaContentType === 'IMAGE' || !m.mediaContentType) {
+          addImage(m.image?.url || m.image?.src, m.image?.altText);
+        }
+      }
+    }
+
+    // Variant images
+    if (p.variants?.nodes) {
+      for (const v of p.variants.nodes) {
+        addImage(v.image?.url || v.image?.src, v.image?.altText);
+      }
+    }
+
+    // featuredImage fallback
+    if (images.length === 0) {
+      addImage(p.featuredImage?.url || p.featuredImage?.src, p.featuredImage?.altText);
+    }
+
+    return images;
   }
 
   /**
