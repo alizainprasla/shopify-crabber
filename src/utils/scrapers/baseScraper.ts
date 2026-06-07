@@ -26,7 +26,7 @@ export abstract class BaseScraper {
   /**
    * Scrape product data from the page
    */
-  abstract scrape(): ScrapedProduct | null;
+  abstract scrape(): Promise<ScrapedProduct | null>;
 
   /**
    * Get text content from an element, trimmed

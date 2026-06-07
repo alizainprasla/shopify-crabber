@@ -79,7 +79,7 @@ async function scrapeProduct(): Promise<ScrapeResult> {
   console.log(`Shopify Crabber: Detected platform - ${platform}`);
 
   // Run the scraper
-  const result = scrapeCurrentPage();
+  const result = await scrapeCurrentPage();
 
   // Cache successful results
   if (result.success && result.product) {

@@ -21,7 +21,7 @@ export class GenericScraper extends BaseScraper {
   /**
    * Main scrape method
    */
-  scrape(): ScrapedProduct | null {
+  async scrape(): Promise<ScrapedProduct | null> {
     const product = createBaseProduct(this.baseUrl);
     product.platform = 'generic';
 

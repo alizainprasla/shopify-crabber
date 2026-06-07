@@ -151,18 +151,24 @@ export class ShopifyScraper extends BaseScraper {
   /**
    * Main scrape method
    */
-  scrape(): ScrapedProduct | null {
+  async scrape(): Promise<ScrapedProduct | null> {
     const product = createBaseProduct(this.baseUrl);
     product.platform = 'shopify';
 
-    // Try to get product JSON first (most reliable)
+    // Try to get product JSON first (most reliable — standard Shopify stores)
     this.productJson = this.getProductJson();
 
     if (this.productJson) {
       return this.scrapeFromJson(product);
     }
 
-    // Try Next.js embedded data (shop.app and similar Storefront API SPAs)
+    // React Router / Remix (shop.app and similar Storefront API SPAs)
+    const reactRouterProduct = await this.scrapeFromReactRouter(product);
+    if (reactRouterProduct?.title) {
+      return reactRouterProduct;
+    }
+
+    // Next.js __NEXT_DATA__ (other Storefront API SPAs)
     const nextDataProduct = this.scrapeFromNextData(product);
     if (nextDataProduct?.title) {
       return nextDataProduct;
@@ -218,6 +224,86 @@ export class ShopifyScraper extends BaseScraper {
     // Try to fetch from .json endpoint
     // Note: This is async but we'll handle it in the content script
     return null;
+  }
+
+  /**
+   * Scrape from React Router / Remix __reactRouterContext (shop.app)
+   *
+   * shop.app uses React Router v7 with streaming. The full product details
+   * (including all images) live behind an async productDetailsPromise inside
+   * window.__reactRouterContext.state.loaderData. We await that promise here
+   * so the scraper sees the complete gallery rather than just the 2 pre-loaded
+   * "critical" images.
+   */
+  private async scrapeFromReactRouter(product: ScrapedProduct): Promise<ScrapedProduct | null> {
+    const ctx = (window as unknown as Record<string, unknown>)['__reactRouterContext'] as {
+      state?: {
+        loaderData?: Record<string, {
+          criticalData?: { title?: string; numberOfVariants?: number; images?: Array<{ url?: string; altText?: string }> };
+          productDetailsPromise?: Promise<{ storefrontProduct?: StorefrontProduct }> | { storefrontProduct?: StorefrontProduct };
+        }>;
+      };
+    } | undefined;
+
+    if (!ctx?.state?.loaderData) return null;
+
+    // Find the product route's loader data — key ends with $slug on shop.app
+    const loaderData = ctx.state.loaderData;
+    const routeEntry = Object.values(loaderData).find(v => v?.productDetailsPromise !== undefined);
+    if (!routeEntry) return null;
+
+    let storefrontProduct: StorefrontProduct | undefined;
+    try {
+      const resolved = await Promise.resolve(routeEntry.productDetailsPromise);
+      storefrontProduct = (resolved as { storefrontProduct?: StorefrontProduct } | undefined)?.storefrontProduct;
+    } catch {
+      return null;
+    }
+
+    if (!storefrontProduct?.title) return null;
+
+    product.title = storefrontProduct.title;
+    product.handle = storefrontProduct.handle || '';
+    const rawDesc = this.decodeIfUrlEncoded(storefrontProduct.descriptionHtml || storefrontProduct.description || '');
+    product.description = this.stripHtml(rawDesc);
+    product.descriptionHtml = rawDesc;
+    product.vendor = storefrontProduct.vendor || '';
+    product.productType = storefrontProduct.productType || '';
+    product.tags = storefrontProduct.tags || [];
+
+    product.images = this.extractStorefrontImages(storefrontProduct);
+
+    // Variants — build from options if nodes list is empty (shop.app loads
+    // only the selected variant individually, but exposes all option values)
+    const variantNodes = storefrontProduct.variants?.nodes || [];
+    if (variantNodes.length > 0) {
+      product.variants = variantNodes.map((v): ProductVariant => {
+        const price = typeof v.price === 'object' && v.price !== null
+          ? (v.price as { amount?: string }).amount || ''
+          : String(v.price || '');
+        const compareAtPrice = v.compareAtPrice && typeof v.compareAtPrice === 'object'
+          ? (v.compareAtPrice as { amount?: string }).amount || ''
+          : v.compareAtPrice ? String(v.compareAtPrice) : '';
+        const imgSrc = v.image?.url || v.image?.src;
+        return {
+          id: v.id?.replace(/.*\//, '') || '',
+          sku: v.sku || '',
+          price,
+          compareAtPrice,
+          options: (v.selectedOptions || []).map(o => ({ name: o.name, value: o.value })),
+          imageUrl: imgSrc ? this.normalizeUrl(imgSrc) : undefined,
+        };
+      });
+    }
+
+    if (product.variants.length === 0) {
+      product.variants.push({ price: '', options: [] });
+    }
+
+    product.seoTitle = this.getMeta('title') || this.getOgMeta('title') || product.title;
+    product.seoDescription = this.getMeta('description') || this.getOgMeta('description') || '';
+
+    return product;
   }
 
   /**

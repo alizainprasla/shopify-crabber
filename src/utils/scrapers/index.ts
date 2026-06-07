@@ -15,14 +15,14 @@ export { BaseScraper } from './baseScraper';
  * Scrape the current page for product data
  * Automatically selects the appropriate scraper based on the page
  */
-export function scrapeCurrentPage(): ScrapeResult {
+export async function scrapeCurrentPage(): Promise<ScrapeResult> {
   const baseUrl = window.location.href;
 
   try {
     // Try Shopify scraper first
     const shopifyScraper = new ShopifyScraper(document, baseUrl);
     if (shopifyScraper.canHandle()) {
-      const product = shopifyScraper.scrape();
+      const product = await shopifyScraper.scrape();
       if (product && product.title) {
         return {
           success: true,
@@ -33,7 +33,7 @@ export function scrapeCurrentPage(): ScrapeResult {
 
     // Fall back to generic scraper
     const genericScraper = new GenericScraper(document, baseUrl);
-    const product = genericScraper.scrape();
+    const product = await genericScraper.scrape();
 
     if (product && product.title) {
       return {
