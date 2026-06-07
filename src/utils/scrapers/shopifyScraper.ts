@@ -267,7 +267,8 @@ export class ShopifyScraper extends BaseScraper {
     const rawDesc = this.decodeIfUrlEncoded(storefrontProduct.descriptionHtml || storefrontProduct.description || '');
     product.description = this.stripHtml(rawDesc);
     product.descriptionHtml = rawDesc;
-    product.vendor = storefrontProduct.vendor || '';
+    // vendor may be top-level or nested under shop.name (shop.app pattern)
+    product.vendor = storefrontProduct.vendor || (storefrontProduct as unknown as { shop?: { name?: string } }).shop?.name || '';
     product.productType = storefrontProduct.productType || '';
     product.tags = storefrontProduct.tags || [];
 
