@@ -35,7 +35,7 @@
   "content_scripts": [
     {
       "js": [
-        "assets/index.ts-loader-Drv764Hm.js"
+        "assets/index.ts-loader-B9KgRrEl.js"
       ],
       "matches": [
         "<all_urls>"
@@ -50,8 +50,8 @@
       ],
       "resources": [
         "icons/*",
-        "assets/csvFormatter-BIA__Ia4.js",
-        "assets/index.ts-Dl5F3fWo.js"
+        "assets/csvFormatter-B4Y9PA7D.js",
+        "assets/index.ts-BCh7W1Si.js"
       ],
       "use_dynamic_url": false
     }

@@ -6,6 +6,7 @@
 
 import type { ExtensionMessage, ScrapeResult, ScrapedProduct } from '../types';
 import { scrapeCurrentPage, isProductPage, detectPlatform } from '../utils/scrapers';
+import { startPicker, stopPicker } from './picker';
 
 // Store scraped data for quick access
 let cachedProduct: ScrapedProduct | null = null;
@@ -46,6 +47,14 @@ async function handleMessage(message: ExtensionMessage): Promise<unknown> {
 
     case 'GET_PRODUCT_DATA':
       return getCachedProduct();
+
+    case 'START_PICKER':
+      startPicker((message.payload as { field: string }).field);
+      return { success: true };
+
+    case 'STOP_PICKER':
+      stopPicker();
+      return { success: true };
 
     default:
       return { success: false, error: 'Unknown message type' };

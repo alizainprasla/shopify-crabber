@@ -6,10 +6,13 @@
 import type { ScrapedProduct, ScrapeResult } from '../../types';
 import { ShopifyScraper } from './shopifyScraper';
 import { GenericScraper } from './genericScraper';
+import { CustomScraper } from './customScraper';
+import { loadSelectorMap } from '../storage/selectorStore';
 
 export { ShopifyScraper } from './shopifyScraper';
 export { GenericScraper } from './genericScraper';
 export { BaseScraper } from './baseScraper';
+export { CustomScraper } from './customScraper';
 
 /**
  * Scrape the current page for product data
@@ -19,6 +22,18 @@ export async function scrapeCurrentPage(): Promise<ScrapeResult> {
   const baseUrl = window.location.href;
 
   try {
+    // Try user-defined custom selectors first (any website)
+    const selectorMap = await loadSelectorMap(window.location.hostname);
+    if (selectorMap?.fields.length) {
+      const customScraper = new CustomScraper(document, baseUrl, selectorMap);
+      if (customScraper.canHandle()) {
+        const product = await customScraper.scrape();
+        if (product?.title) {
+          return { success: true, product };
+        }
+      }
+    }
+
     // Try Shopify scraper first
     const shopifyScraper = new ShopifyScraper(document, baseUrl);
     if (shopifyScraper.canHandle()) {

@@ -156,6 +156,10 @@ export type MessageType =
   | 'DOWNLOAD_IMAGES'
   | 'GET_PRODUCT_DATA'
   | 'PUSH_TO_SHOPIFY'
+  | 'START_PICKER'
+  | 'STOP_PICKER'
+  | 'PICKER_SELECTED'
+  | 'PICKER_CANCELLED'
   | 'PING';
 
 export interface ExtensionMessage {

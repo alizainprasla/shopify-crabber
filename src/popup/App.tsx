@@ -8,10 +8,12 @@ import { ValidationWarnings } from './components/ValidationWarnings';
 import { Toast } from './components/Toast';
 import { ErrorMessage } from './components/ErrorMessage';
 import { StoreConnect } from './components/StoreConnect';
+import { FieldPicker } from './components/FieldPicker';
 import { validateProduct } from '../utils/validators';
 import { generateProductCSV, generateCSVFilename } from '../utils/csv';
 import { generateHandle } from '../utils/shopify';
 import { downloadImagesAsZip } from '../utils/images';
+import type { SelectorMap } from '../utils/storage/selectorStore';
 
 type AppState = 'idle' | 'scraping' | 'success' | 'error';
 
@@ -30,11 +32,26 @@ export default function App() {
   const [imageProgress, setImageProgress] = useState({ current: 0, total: 0 });
   const [storeConfig, setStoreConfig] = useState<ShopifyStoreConfig | null>(null);
   const [showSettings, setShowSettings] = useState(false);
+  const [showPicker, setShowPicker] = useState(false);
   const [pushingToShopify, setPushingToShopify] = useState(false);
+  const [hostname, setHostname] = useState('');
+  const [selectorMap, setSelectorMap] = useState<SelectorMap | null>(null);
 
   useEffect(() => {
     chrome.storage.local.get(['shopifyStore'], result => {
       if (result.shopifyStore) setStoreConfig(result.shopifyStore);
+    });
+    // Get current tab hostname and load any saved selector map
+    chrome.tabs.query({ active: true, currentWindow: true }, async tabs => {
+      const url = tabs[0]?.url;
+      if (!url) return;
+      try {
+        const h = new URL(url).hostname;
+        setHostname(h);
+        const result = await chrome.storage.local.get('selectorMaps');
+        const maps = result.selectorMaps || {};
+        if (maps[h]) setSelectorMap(maps[h]);
+      } catch {}
     });
   }, []);
 
@@ -178,25 +195,46 @@ export default function App() {
           />
         )}
 
-        {!showSettings && state === 'idle' && (
-          <ScrapeButton onScrape={handleScrape} />
+        {showPicker && hostname && (
+          <FieldPicker
+            hostname={hostname}
+            selectorMap={selectorMap}
+            onSave={map => {
+              setSelectorMap(map);
+              setShowPicker(false);
+            }}
+            onClose={() => setShowPicker(false)}
+          />
         )}
 
-        {!showSettings && state === 'scraping' && (
+        {!showSettings && !showPicker && state === 'idle' && (
+          <>
+            <ScrapeButton onScrape={handleScrape} />
+            <button
+              onClick={() => setShowPicker(true)}
+              className="w-full btn btn-secondary text-sm flex items-center justify-center gap-2"
+            >
+              <span>🎯</span>
+              {selectorMap?.fields.length ? 'Edit Custom Selectors' : 'Customize Selectors'}
+            </button>
+          </>
+        )}
+
+        {!showSettings && !showPicker && state === 'scraping' && (
           <div className="card p-6 text-center">
             <div className="inline-block w-8 h-8 border-3 border-emerald-600 border-t-transparent rounded-full animate-spin mb-3" />
             <p className="text-gray-600">Scraping product data...</p>
           </div>
         )}
 
-        {!showSettings && state === 'error' && (
+        {!showSettings && !showPicker && state === 'error' && (
           <ErrorMessage
             message={error || 'Unknown error occurred'}
             onRetry={handleRetry}
           />
         )}
 
-        {!showSettings && state === 'success' && product && (
+        {!showSettings && !showPicker && state === 'success' && product && (
           <>
             {validation && (validation.warnings.length > 0 || validation.errors.length > 0) && (
               <ValidationWarnings validation={validation} />
