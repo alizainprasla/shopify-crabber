@@ -19,6 +19,8 @@ export default defineConfig({
     rollupOptions: {
       input: {
         popup: resolve(__dirname, 'src/popup/index.html'),
+        devtools: resolve(__dirname, 'src/devtools/devtools.html'),
+        panel: resolve(__dirname, 'src/devtools/panel.html'),
       },
     },
   },

@@ -28,6 +28,7 @@
   "host_permissions": [
     "<all_urls>"
   ],
+  "devtools_page": "src/devtools/devtools.html",
   "background": {
     "service_worker": "service-worker-loader.js",
     "type": "module"
@@ -35,7 +36,7 @@
   "content_scripts": [
     {
       "js": [
-        "assets/index.ts-loader-B9KgRrEl.js"
+        "assets/index.ts-loader-DrcrX21d.js"
       ],
       "matches": [
         "<all_urls>"
@@ -50,8 +51,9 @@
       ],
       "resources": [
         "icons/*",
-        "assets/csvFormatter-B4Y9PA7D.js",
-        "assets/index.ts-BCh7W1Si.js"
+        "assets/csvFormatter-BIA__Ia4.js",
+        "assets/selectorStore-B4nqBoLJ.js",
+        "assets/index.ts-C7aKpPF7.js"
       ],
       "use_dynamic_url": false
     }
