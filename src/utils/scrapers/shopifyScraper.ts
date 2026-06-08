@@ -156,7 +156,7 @@ export class ShopifyScraper extends BaseScraper {
     product.platform = 'shopify';
 
     // Try to get product JSON first (most reliable — standard Shopify stores)
-    this.productJson = this.getProductJson();
+    this.productJson = await this.getProductJson();
 
     if (this.productJson) {
       return this.scrapeFromJson(product);
@@ -187,11 +187,11 @@ export class ShopifyScraper extends BaseScraper {
   /**
    * Get product JSON from various Shopify sources
    */
-  private getProductJson(): ShopifyProductJson | null {
+  private async getProductJson(): Promise<ShopifyProductJson | null> {
     const win = window as unknown as ShopifyWindow;
 
-    // Check window.meta.product
-    if (win.meta?.product) {
+    // Check window.meta.product — only use it if it has the minimum fields
+    if (win.meta?.product?.title && win.meta.product.variants) {
       return win.meta.product;
     }
 
@@ -200,7 +200,6 @@ export class ShopifyScraper extends BaseScraper {
     for (const script of scripts) {
       const content = script.textContent || '';
 
-      // Look for product JSON patterns
       const patterns = [
         /var\s+meta\s*=\s*(\{[\s\S]*?"product"[\s\S]*?\});/,
         /product:\s*(\{[\s\S]*?"id"[\s\S]*?"variants"[\s\S]*?\})/,
@@ -212,8 +211,11 @@ export class ShopifyScraper extends BaseScraper {
         if (match) {
           try {
             const parsed = JSON.parse(match[1]);
-            if (parsed.product) return parsed.product;
-            if (parsed.variants) return parsed;
+            const candidate = parsed.product || (parsed.variants ? parsed : null);
+            // Require title + images/media so partial objects don't block the AJAX fallback
+            if (candidate?.title && (candidate.images?.length || candidate.media?.length)) {
+              return candidate;
+            }
           } catch {
             continue;
           }
@@ -221,8 +223,47 @@ export class ShopifyScraper extends BaseScraper {
       }
     }
 
-    // Try to fetch from .json endpoint
-    // Note: This is async but we'll handle it in the content script
+    // Fetch from /products/handle.json — the AJAX endpoint has the full
+    // product including all images and options, but uses a different format:
+    // images are objects {src, ...}, options are objects {name, values},
+    // and variant prices are dollar strings not cents. Normalise to match
+    // ShopifyProductJson so scrapeFromJson can consume it unchanged.
+    const handle = window.location.pathname.match(/\/products\/([^/?#]+)/)?.[1];
+    if (handle) {
+      try {
+        const res = await fetch(`${window.location.origin}/products/${handle}.json`);
+        if (res.ok) {
+          const data = await res.json();
+          const p = data.product;
+          if (p?.title) {
+            return {
+              ...p,
+              // images: object[] → string[]
+              images: (p.images || []).map((img: { src: string }) => img.src),
+              // options: object[] → string[] (option names)
+              options: (p.options || []).map((opt: { name: string }) => opt.name),
+              // variants: prices are dollar strings — convert to cents so
+              // formatPrice() (÷100) round-trips back to dollars correctly
+              variants: (p.variants || []).map((v: {
+                price: string;
+                compare_at_price: string | null;
+                featured_image?: unknown;
+              }) => ({
+                ...v,
+                price: Math.round(parseFloat(v.price || '0') * 100),
+                compare_at_price: v.compare_at_price
+                  ? Math.round(parseFloat(v.compare_at_price) * 100)
+                  : null,
+                featured_image: v.featured_image || null,
+              })),
+            } as ShopifyProductJson;
+          }
+        }
+      } catch {
+        // fall through to JSON-LD / DOM
+      }
+    }
+
     return null;
   }
 

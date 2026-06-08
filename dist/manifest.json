@@ -35,7 +35,7 @@
   "content_scripts": [
     {
       "js": [
-        "assets/index.ts-loader-Tr-T0do2.js"
+        "assets/index.ts-loader-Drv764Hm.js"
       ],
       "matches": [
         "<all_urls>"
@@ -51,7 +51,7 @@
       "resources": [
         "icons/*",
         "assets/csvFormatter-BIA__Ia4.js",
-        "assets/index.ts-DmBdeqhw.js"
+        "assets/index.ts-Dl5F3fWo.js"
       ],
       "use_dynamic_url": false
     }
