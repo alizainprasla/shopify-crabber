@@ -9,6 +9,7 @@ import { Toast } from './components/Toast';
 import { ErrorMessage } from './components/ErrorMessage';
 import { StoreConnect } from './components/StoreConnect';
 import { FieldPicker } from './components/FieldPicker';
+import { CollectionScraper } from './components/CollectionScraper';
 import { validateProduct } from '../utils/validators';
 import { generateProductCSV, generateCSVFilename } from '../utils/csv';
 import { generateHandle } from '../utils/shopify';
@@ -33,8 +34,11 @@ export default function App() {
   const [storeConfig, setStoreConfig] = useState<ShopifyStoreConfig | null>(null);
   const [showSettings, setShowSettings] = useState(false);
   const [showPicker, setShowPicker] = useState(false);
+  const [showCollection, setShowCollection] = useState(false);
   const [pushingToShopify, setPushingToShopify] = useState(false);
   const [hostname, setHostname] = useState('');
+  const [tabUrl, setTabUrl] = useState('');
+  const [isCollectionPage, setIsCollectionPage] = useState(false);
   const [selectorMap, setSelectorMap] = useState<SelectorMap | null>(null);
 
   useEffect(() => {
@@ -46,11 +50,13 @@ export default function App() {
       const url = tabs[0]?.url;
       if (!url) return;
       try {
-        const h = new URL(url).hostname;
-        setHostname(h);
+        const parsed = new URL(url);
+        setTabUrl(url);
+        setHostname(parsed.hostname);
+        setIsCollectionPage(/\/collections\/[^/?#]+/.test(parsed.pathname));
         const result = await chrome.storage.local.get('selectorMaps');
         const maps = result.selectorMaps || {};
-        if (maps[h]) setSelectorMap(maps[h]);
+        if (maps[parsed.hostname]) setSelectorMap(maps[parsed.hostname]);
       } catch {}
     });
   }, []);
@@ -207,9 +213,25 @@ export default function App() {
           />
         )}
 
-        {!showSettings && !showPicker && state === 'idle' && (
+        {showCollection && tabUrl && (
+          <CollectionScraper
+            tabUrl={tabUrl}
+            onClose={() => setShowCollection(false)}
+          />
+        )}
+
+        {!showSettings && !showPicker && !showCollection && state === 'idle' && (
           <>
             <ScrapeButton onScrape={handleScrape} />
+            {isCollectionPage && (
+              <button
+                onClick={() => setShowCollection(true)}
+                className="w-full btn btn-secondary text-sm flex items-center justify-center gap-2"
+              >
+                <span>📦</span>
+                Scrape Entire Collection
+              </button>
+            )}
             <button
               onClick={() => setShowPicker(true)}
               className="w-full btn btn-secondary text-sm flex items-center justify-center gap-2"
@@ -220,21 +242,21 @@ export default function App() {
           </>
         )}
 
-        {!showSettings && !showPicker && state === 'scraping' && (
+        {!showSettings && !showPicker && !showCollection && state === 'scraping' && (
           <div className="card p-6 text-center">
             <div className="inline-block w-8 h-8 border-3 border-emerald-600 border-t-transparent rounded-full animate-spin mb-3" />
             <p className="text-gray-600">Scraping product data...</p>
           </div>
         )}
 
-        {!showSettings && !showPicker && state === 'error' && (
+        {!showSettings && !showPicker && !showCollection && state === 'error' && (
           <ErrorMessage
             message={error || 'Unknown error occurred'}
             onRetry={handleRetry}
           />
         )}
 
-        {!showSettings && !showPicker && state === 'success' && product && (
+        {!showSettings && !showPicker && !showCollection && state === 'success' && product && (
           <>
             {validation && (validation.warnings.length > 0 || validation.errors.length > 0) && (
               <ValidationWarnings validation={validation} />

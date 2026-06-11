@@ -4,7 +4,7 @@
  * Manages downloads and storage
  */
 
-import type { ExtensionMessage, StorageData, ScrapedProduct, ScrapeResult } from '../types';
+import type { ExtensionMessage, StorageData, ScrapedProduct, ScrapeResult, CollectionScrapeResult } from '../types';
 
 // Default settings
 const DEFAULT_SETTINGS: StorageData['settings'] = {
@@ -75,6 +75,9 @@ async function handleMessage(message: ExtensionMessage): Promise<unknown> {
       return await pushProductToShopify(product, storeConfig);
     }
 
+    case 'SCRAPE_COLLECTION':
+      return await scrapeCollection(message.payload as { url: string });
+
     default:
       return { success: false, error: 'Unknown message type' };
   }
@@ -113,6 +116,124 @@ async function scrapeCurrentTab(): Promise<ScrapeResult> {
       error: error instanceof Error ? error.message : 'Scraping failed — try reloading the page',
     };
   }
+}
+
+/**
+ * Scrape all products from a Shopify collection using the JSON API.
+ * Paginates automatically until all products are fetched.
+ */
+async function scrapeCollection({ url }: { url: string }): Promise<CollectionScrapeResult> {
+  try {
+    const u = new URL(url);
+    const origin = u.origin;
+    const collectionMatch = u.pathname.match(/\/collections\/([^/?#]+)/);
+    const handle = collectionMatch?.[1];
+
+    const apiBase = handle
+      ? `${origin}/collections/${handle}/products.json`
+      : `${origin}/products.json`;
+
+    const allProducts: ScrapedProduct[] = [];
+    let page = 1;
+
+    while (true) {
+      const res = await fetch(`${apiBase}?limit=250&page=${page}`, {
+        headers: { Accept: 'application/json' },
+      });
+
+      if (!res.ok) {
+        if (page === 1) {
+          return { success: false, error: `Shopify API returned ${res.status} — is this a Shopify store?` };
+        }
+        break;
+      }
+
+      const data = await res.json() as { products?: ShopifyApiProduct[] };
+      const batch = data.products;
+      if (!batch || batch.length === 0) break;
+
+      for (const p of batch) {
+        allProducts.push(normalizeShopifyApiProduct(p, origin));
+      }
+
+      if (batch.length < 250) break;
+      page++;
+    }
+
+    if (allProducts.length === 0) {
+      return { success: false, error: 'No products found in this collection' };
+    }
+
+    return { success: true, products: allProducts };
+  } catch (err) {
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : 'Collection scrape failed',
+    };
+  }
+}
+
+interface ShopifyApiProduct {
+  id: number;
+  title: string;
+  handle: string;
+  body_html: string;
+  vendor: string;
+  product_type: string;
+  tags: string[];
+  options: Array<{ name: string; values: string[] }>;
+  variants: Array<{
+    id: number;
+    sku: string;
+    price: string;
+    compare_at_price: string | null;
+    option1: string | null;
+    option2: string | null;
+    option3: string | null;
+    barcode: string | null;
+    weight: number;
+    weight_unit: string;
+    requires_shipping: boolean;
+    taxable: boolean;
+  }>;
+  images: Array<{ src: string; alt: string | null; position: number }>;
+}
+
+function normalizeShopifyApiProduct(p: ShopifyApiProduct, origin: string): ScrapedProduct {
+  const optionNames = p.options?.map(o => o.name) ?? [];
+
+  return {
+    title: p.title,
+    handle: p.handle,
+    description: p.body_html?.replace(/<[^>]+>/g, '').trim(),
+    descriptionHtml: p.body_html,
+    vendor: p.vendor,
+    productType: p.product_type,
+    tags: p.tags,
+    variants: (p.variants ?? []).map(v => ({
+      sku: v.sku || '',
+      barcode: v.barcode || '',
+      price: v.price,
+      compareAtPrice: v.compare_at_price || undefined,
+      weight: v.weight,
+      weightUnit: (v.weight_unit as ScrapedProduct['variants'][0]['weightUnit']) || 'g',
+      requiresShipping: v.requires_shipping,
+      taxable: v.taxable,
+      options: [
+        v.option1 && optionNames[0] ? { name: optionNames[0], value: v.option1 } : null,
+        v.option2 && optionNames[1] ? { name: optionNames[1], value: v.option2 } : null,
+        v.option3 && optionNames[2] ? { name: optionNames[2], value: v.option3 } : null,
+      ].filter((o): o is { name: string; value: string } => o !== null),
+    })),
+    images: (p.images ?? []).map(img => ({
+      src: img.src.startsWith('//') ? `https:${img.src}` : img.src,
+      alt: img.alt || undefined,
+      position: img.position,
+    })),
+    sourceUrl: `${origin}/products/${p.handle}`,
+    scrapedAt: new Date().toISOString(),
+    platform: 'shopify',
+  };
 }
 
 /**

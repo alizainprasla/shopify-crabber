@@ -148,10 +148,18 @@ export interface ScrapeResult {
   warnings?: string[];
 }
 
+// Collection scraping
+export interface CollectionScrapeResult {
+  success: boolean;
+  products?: ScrapedProduct[];
+  error?: string;
+}
+
 // Message types for Chrome extension communication
 export type MessageType =
   | 'SCRAPE_PRODUCT'
   | 'SCRAPE_RESULT'
+  | 'SCRAPE_COLLECTION'
   | 'DOWNLOAD_CSV'
   | 'DOWNLOAD_IMAGES'
   | 'GET_PRODUCT_DATA'
