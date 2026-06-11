@@ -14,6 +14,9 @@ const DEFAULT_SETTINGS: StorageData['settings'] = {
   defaultStatus: 'active',
 };
 
+// Open the side panel when the user clicks the extension icon
+chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch(console.error);
+
 /**
  * Initialize extension on install
  */
