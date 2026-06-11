@@ -50,9 +50,16 @@ export function FieldPicker({ hostname, selectorMap, onSave, onClose }: Props) {
         type: 'START_PICKER',
         payload: { field: fieldName },
       });
-      // Close popup so user can interact with the page
-      window.close();
     }
+  }, []);
+
+  const cancelPick = useCallback(async () => {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (tab.id) {
+      await chrome.tabs.sendMessage(tab.id, { type: 'STOP_PICKER' }).catch(() => {});
+    }
+    setPickerState('idle');
+    setActiveField(null);
   }, []);
 
   const clearField = useCallback((fieldName: string) => {
@@ -103,10 +110,28 @@ export function FieldPicker({ hostname, selectorMap, onSave, onClose }: Props) {
         <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-lg leading-none">×</button>
       </div>
 
-      <p className="text-xs text-gray-500 bg-gray-50 rounded p-2">
-        Click <strong>Pick</strong> next to any field, then click an element on the page to set its selector.
-        You can also type a CSS selector directly.
-      </p>
+      {pickerState === 'waiting' ? (
+        <div className="flex items-center justify-between bg-emerald-50 border border-emerald-200 rounded p-2">
+          <div className="flex items-center gap-2 text-xs text-emerald-700">
+            <span className="inline-block w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+            <span>
+              Picking <strong>{fields.find(f => f.name === activeField)?.label}</strong> —
+              click any element on the page
+            </span>
+          </div>
+          <button
+            onClick={cancelPick}
+            className="text-xs text-emerald-600 hover:text-emerald-800 font-medium ml-2 flex-shrink-0"
+          >
+            Cancel
+          </button>
+        </div>
+      ) : (
+        <p className="text-xs text-gray-500 bg-gray-50 rounded p-2">
+          Click <strong>Pick</strong> next to any field, then click an element on the page.
+          You can also type a CSS selector directly.
+        </p>
+      )}
 
       <div className="flex flex-col gap-2">
         {fields.map(field => (
