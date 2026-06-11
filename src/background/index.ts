@@ -191,8 +191,7 @@ interface ShopifyApiProduct {
     option2: string | null;
     option3: string | null;
     barcode: string | null;
-    weight: number;
-    weight_unit: string;
+    grams: number;
     requires_shipping: boolean;
     taxable: boolean;
   }>;
@@ -215,8 +214,8 @@ function normalizeShopifyApiProduct(p: ShopifyApiProduct, origin: string): Scrap
       barcode: v.barcode || '',
       price: v.price,
       compareAtPrice: v.compare_at_price || undefined,
-      weight: v.weight,
-      weightUnit: (v.weight_unit as ScrapedProduct['variants'][0]['weightUnit']) || 'g',
+      weight: v.grams,
+      weightUnit: 'g',
       requiresShipping: v.requires_shipping,
       taxable: v.taxable,
       options: [
